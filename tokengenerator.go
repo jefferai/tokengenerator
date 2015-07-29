@@ -1,6 +1,7 @@
 package main // import "github.com/jefferai/tokengenerator"
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"log"
@@ -10,6 +11,12 @@ import (
 	"github.com/hashicorp/vault/api"
 	"github.com/pborman/uuid"
 )
+
+type TokenResponse struct {
+	Token        string `json:"token"`
+	ValidSeconds int64  `json:"valid_seconds"`
+	NumUses      int64  `json:"num_uses"`
+}
 
 func generateToken(w http.ResponseWriter, r *http.Request) {
 	client, err := api.NewClient(&api.Config{
@@ -48,7 +55,7 @@ func generateToken(w http.ResponseWriter, r *http.Request) {
 	secret, err = client.Logical().Write("auth/token/create", map[string]interface{}{
 		"policies": []string{"fetch-poml-tokens"},
 		"orphan":   true,
-		"lease":    "10s",
+		"lease":    "300s",
 		"num_uses": 1,
 		"meta": map[string]interface{}{
 			"permtoken": tokenUUID,
@@ -64,7 +71,13 @@ func generateToken(w http.ResponseWriter, r *http.Request) {
 		panic("Returned auth was nil")
 	}
 
-	fmt.Fprintf(w, "%s", html.EscapeString(secret.Auth.ClientToken))
+	tokenResponse := &TokenResponse{
+		Token:        secret.Auth.ClientToken,
+		ValidSeconds: 300,
+		NumUses:      1,
+	}
+	b, _ := json.Marshal(tokenResponse)
+	fmt.Fprintf(w, "%s", html.EscapeString(string(b)))
 }
 
 func main() {
