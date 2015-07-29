@@ -83,5 +83,5 @@ func generateToken(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/", generateToken)
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8234", nil))
 }
