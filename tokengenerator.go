@@ -1,12 +1,14 @@
 package main // import "github.com/jefferai/tokengenerator"
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"html"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/pborman/uuid"
@@ -21,6 +23,19 @@ type TokenResponse struct {
 func generateToken(w http.ResponseWriter, r *http.Request) {
 	client, err := api.NewClient(&api.Config{
 		Address: os.Getenv("VAULT_ADDR"),
+		HttpClient: &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				Dial: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout: 10 * time.Second,
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+		},
 	})
 	if err != nil {
 		panic(err)
@@ -77,7 +92,7 @@ func generateToken(w http.ResponseWriter, r *http.Request) {
 		NumUses:      1,
 	}
 	b, _ := json.Marshal(tokenResponse)
-	fmt.Fprintf(w, "%s", html.EscapeString(string(b)))
+	fmt.Fprint(w, string(b))
 }
 
 func main() {
